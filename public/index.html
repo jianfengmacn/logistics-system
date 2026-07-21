@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>物流信息管理系统 - 登录</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="login-page">
+    <div class="login-card">
+      <div class="logo">📦</div>
+      <h1>物流信息管理系统</h1>
+      <p class="subtitle">请输入账号密码登录</p>
+
+      <div id="errorMsg" class="alert alert-error" style="display:none;"></div>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label>账号</label>
+          <input type="text" id="username" placeholder="请输入账号" autocomplete="username" required>
+        </div>
+        <div class="form-group">
+          <label>密码</label>
+          <input type="password" id="password" placeholder="请输入密码" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" style="margin-top:8px;">登 录</button>
+      </form>
+
+      <div style="margin-top:24px; padding:16px; background:#f9fafb; border-radius:8px; font-size:13px; color:#6b7280; line-height:1.8;">
+        <strong style="color:#374151;">演示账号：</strong><br>
+        管理员 — admin / admin123<br>
+        用户 — user1 / user123<br>
+        用户 — user2 / user123
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 已登录则跳转
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (payload.exp * 1000 > Date.now()) {
+          window.location.href = payload.role === 'admin' ? '/admin.html' : '/user.html';
+        }
+      } catch {}
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value.trim();
+      const errBox = document.getElementById('errorMsg');
+      errBox.style.display = 'none';
+
+      try {
+        const resp = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || '登录失败');
+
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('role', data.role);
+        localStorage.setItem('username', data.username);
+
+        window.location.href = data.role === 'admin' ? '/admin.html' : '/user.html';
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.style.display = 'flex';
+      }
+    });
+  </script>
+</body>
+</html>
