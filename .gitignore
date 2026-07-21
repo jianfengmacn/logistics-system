@@ -1,0 +1,15 @@
+node_modules/
+data.json
+public/uploads/
+.env
+*.log
+.workbuddy/
+dist/
+
+# Python OCR venv（本地保留，部署时不需要推送）
+envs/
+__pycache__/
+*.pyc
+
+# tesseract.js 语言数据（本地可选，Render 在线下载）
+tessdata/
