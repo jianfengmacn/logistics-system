@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理面板 - 物流信息管理系统</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    /* Tab 切换 */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      border-bottom: 2px solid #e5e7eb;
+      margin-bottom: 20px;
+    }
+    .tab {
+      padding: 10px 20px;
+      cursor: pointer;
+      border: none;
+      background: none;
+      font-size: 15px;
+      color: #6b7280;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.2s;
+    }
+    .tab:hover { color: #4f46e5; }
+    .tab.active {
+      color: #4f46e5;
+      border-bottom-color: #4f46e5;
+      font-weight: 600;
+    }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* 批量识别区 */
+    .scan-upload-area {
+      border: 2px dashed #cbd5e1;
+      border-radius: 12px;
+      padding: 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #fafbfc;
+      margin-bottom: 16px;
+    }
+    .scan-upload-area:hover, .scan-upload-area.dragover {
+      border-color: #4f46e5;
+      background: #eef2ff;
+    }
+    .scan-upload-area .icon {
+      font-size: 40px;
+      margin-bottom: 8px;
+    }
+    .scan-progress {
+      display: none;
+      margin: 16px 0;
+      padding: 12px 16px;
+      background: #eef2ff;
+      border-radius: 8px;
+      color: #4f46e5;
+      font-size: 14px;
+    }
+    .scan-progress .bar {
+      height: 6px;
+      background: #c7d2fe;
+      border-radius: 3px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+    .scan-progress .bar-fill {
+      height: 100%;
+      background: #4f46e5;
+      transition: width 0.3s;
+    }
+    .scan-toolbar {
+      display: flex;
+      gap: 8px;
+      margin: 12px 0;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .scan-stats {
+      color: #6b7280;
+      font-size: 13px;
+      margin-right: auto;
+    }
+    .scan-thumb {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid #e5e7eb;
+      transition: transform 0.15s;
+    }
+    .scan-thumb:hover { transform: scale(1.08); border-color: #4f46e5; }
+    .scan-code {
+      font-family: 'Courier New', monospace;
+      font-weight: 700;
+      color: #1f2937;
+      letter-spacing: 0.5px;
+    }
+    .scan-status-fail { color: #ef4444; }
+    .scan-status-ok { color: #10b981; }
+    .btn-icon-edit {
+      background: transparent;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      padding: 2px 6px;
+      cursor: pointer;
+      font-size: 13px;
+      line-height: 1;
+      transition: all 0.15s;
+    }
+    .btn-icon-edit:hover {
+      background: #4f46e5;
+      border-color: #4f46e5;
+      transform: scale(1.1);
+    }
+
+    /* Lightbox */
+    .lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      padding: 30px;
+      cursor: zoom-out;
+    }
+    .lightbox.active { display: flex; }
+    .lightbox img {
+      max-width: 95%;
+      max-height: 90vh;
+      border-radius: 8px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    }
+    .lightbox-info {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255,255,255,0.95);
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #1f2937;
+    }
+    .lightbox-info b { color: #4f46e5; }
+
+    /* 用户管理 */
+    .user-add-form {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .user-status-active {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      background: #d1fae5;
+      color: #065f46;
+    }
+    .user-status-frozen {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    .user-role-admin {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      background: #fef3c7;
+      color: #92400e;
+    }
+    .user-role-user {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      background: #e0e7ff;
+      color: #3730a3;
+    }
+    .btn-danger {
+      background: #ef4444;
+      color: #fff;
+      border: none;
+    }
+    .btn-danger:hover { background: #dc2626; }
+  </style>
+</head>
+<body>
+  <!-- 导航栏 -->
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <div class="icon">📦</div>
+      <span>物流信息管理系统</span>
+    </div>
+    <div class="navbar-user">
+      <span class="role-badge admin">管理员</span>
+      <span id="usernameDisplay" style="font-size:14px;color:#4b5563;"></span>
+      <button class="btn btn-outline btn-sm" onclick="openUserModal()">👥 用户管理</button>
+      <button class="btn btn-outline btn-sm" onclick="openChangeMyPasswordModal()">🔑 修改密码</button>
+      <button class="btn btn-outline btn-sm" onclick="logout()">退出登录</button>
+    </div>
+  </nav>
+
+  <div class="container">
+    <!-- Tab 切换 -->
+    <div class="tabs">
+      <button class="tab active" id="tabRecords" onclick="switchTab('records')">📋 提交记录</button>
+      <button class="tab" id="tabScan" onclick="switchTab('scan')">🔍 批量识别运单</button>
+    </div>
+
+    <!-- Tab1: 提交记录 -->
+    <div class="tab-content active" id="content-records">
+      <h2 class="page-title">全部提交记录</h2>
+
+      <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="输入物流单号搜索...">
+        <button class="btn btn-primary" onclick="loadSubmissions()">搜索</button>
+        <button class="btn btn-outline" onclick="clearSearch()">显示全部</button>
+        <button class="btn btn-outline" onclick="exportSubmissionsCSV()">📥 导出CSV</button>
+      </div>
+
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>提交用户</th>
+                <th>手机号码</th>
+                <th>物流单号</th>
+                <th>商品数量</th>
+                <th>顺丰图片</th>
+                <!-- 物流图片列已隐藏（2026-07-21 用户要求不需要此列） -->
+                <!-- <th>物流图片</th> -->
+                <th>用户验证码</th>
+                <th>审核状态</th>
+                <th>提交时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="submissionsTableBody">
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div id="emptyState" class="empty-state" style="display:none;">
+        <div class="icon">🔍</div>
+        <p>暂无提交记录</p>
+      </div>
+    </div>
+
+    <!-- Tab2: 批量识别运单 -->
+    <div class="tab-content" id="content-scan">
+      <h2 class="page-title">批量识别运单</h2>
+
+      <!-- 上传区 -->
+      <div class="scan-upload-area" id="scanUploadArea" onclick="document.getElementById('scanFileInput').click()">
+        <div class="icon">📤</div>
+        <p style="font-size:15px;color:#1f2937;margin-bottom:4px;"><b>点击或拖拽运单图片到此处</b></p>
+        <p style="font-size:13px;color:#6b7280;">支持批量上传 JPG/PNG/JPEG，自动识别运单号（OCR）</p>
+      </div>
+      <input type="file" id="scanFileInput" accept="image/*" multiple style="display:none;" onchange="handleScanFiles(this.files)">
+
+      <!-- 进度 -->
+      <div class="scan-progress" id="scanProgress">
+        <div id="scanProgressText">准备识别...</div>
+        <div class="bar"><div class="bar-fill" id="scanProgressFill" style="width:0%;"></div></div>
+      </div>
+
+      <!-- 工具栏 -->
+      <div class="scan-toolbar" id="scanToolbar" style="display:none;">
+        <span class="scan-stats" id="scanStats"></span>
+        <button class="btn btn-outline btn-sm" onclick="exportScanCSV()">📥 导出CSV</button>
+        <button class="btn btn-outline btn-sm" onclick="clearScanResults()">🗑 清空</button>
+      </div>
+
+      <!-- 结果表格 -->
+      <div class="card" id="scanResultCard" style="padding:0;overflow:hidden;display:none;">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:60px;">序号</th>
+                <th>运单号</th>
+                <th style="width:80px;">图片</th>
+                <th style="width:100px;">识别方式</th>
+                <th style="width:120px;">操作</th>
+              </tr>
+            </thead>
+            <tbody id="scanTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="scanEmptyState" class="empty-state">
+        <div class="icon">📤</div>
+        <p>上传运单图片后，将自动识别运单号并生成清单</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 详情/编辑弹窗 -->
+  <div class="modal-overlay" id="detailModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modalTitle">提交详情</h2>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="detailBody"></div>
+      <div class="modal-footer" id="modalFooter">
+        <button class="btn btn-outline" onclick="closeModal()">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 图片大图预览 -->
+  <div class="lightbox" id="lightbox" onclick="closeLightbox(event)">
+    <img id="lightboxImg" src="" alt="预览">
+    <div class="lightbox-info" id="lightboxInfo"></div>
+  </div>
+
+  <!-- 用户管理弹窗 -->
+  <div class="modal-overlay" id="userModal">
+    <div class="modal" style="max-width:780px;">
+      <div class="modal-header">
+        <h2>👥 用户管理</h2>
+        <button class="modal-close" onclick="closeUserModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- 新增用户表单 -->
+        <div class="user-add-form" id="userAddForm">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+            <div style="flex:1;min-width:140px;">
+              <label style="font-size:12px;color:#6b7280;">用户名</label>
+              <input type="text" id="newUsername" placeholder="2-20位字母/数字/下划线" autocomplete="off"
+                     style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;">
+            </div>
+            <div style="flex:1;min-width:140px;">
+              <label style="font-size:12px;color:#6b7280;">密码</label>
+              <input type="text" id="newPassword" placeholder="至少6位" autocomplete="off"
+                     style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;">
+            </div>
+            <div style="min-width:100px;">
+              <label style="font-size:12px;color:#6b7280;">角色</label>
+              <select id="newRole" style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;">
+                <option value="user">普通用户</option>
+                <option value="admin">管理员</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" onclick="createUser()" style="height:38px;">+ 新增</button>
+          </div>
+        </div>
+
+        <!-- 用户列表 -->
+        <div style="margin-top:16px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+          <table style="width:100%;font-size:14px;">
+            <thead style="background:#f9fafb;">
+              <tr>
+                <th style="padding:10px;text-align:left;">ID</th>
+                <th style="padding:10px;text-align:left;">用户名</th>
+                <th style="padding:10px;text-align:left;">角色</th>
+                <th style="padding:10px;text-align:left;">状态</th>
+                <th style="padding:10px;text-align:right;">操作</th>
+              </tr>
+            </thead>
+            <tbody id="userTableBody">
+              <tr><td colspan="5" style="padding:20px;text-align:center;color:#9ca3af;">加载中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="font-size:12px;color:#9ca3af;margin-top:10px;">
+          提示：冻结后用户无法登录；删除用户不会删除其提交记录（记录保留，但用户名不再可登录）。
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeUserModal()">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 修改自己密码弹窗 -->
+  <div class="modal-overlay" id="changeMyPasswordModal">
+    <div class="modal" style="max-width:420px;">
+      <div class="modal-header">
+        <h2>🔑 修改我的密码</h2>
+        <button class="modal-close" onclick="closeChangeMyPasswordModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div>
+            <label style="font-size:12px;color:#6b7280;">旧密码</label>
+            <input type="password" id="myOldPassword" placeholder="输入当前密码" autocomplete="off"
+                   style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;margin-top:4px;">
+          </div>
+          <div>
+            <label style="font-size:12px;color:#6b7280;">新密码</label>
+            <input type="password" id="myNewPassword" placeholder="至少6位" autocomplete="off"
+                   style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;margin-top:4px;">
+          </div>
+          <div>
+            <label style="font-size:12px;color:#6b7280;">确认新密码</label>
+            <input type="password" id="myNewPassword2" placeholder="再输入一次新密码" autocomplete="off"
+                   style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;margin-top:4px;">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeChangeMyPasswordModal()">取消</button>
+        <button class="btn btn-primary" onclick="changeMyPassword()">确认修改</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 重置某用户密码弹窗 -->
+  <div class="modal-overlay" id="resetUserPasswordModal">
+    <div class="modal" style="max-width:420px;">
+      <div class="modal-header">
+        <h2>🔧 重置密码</h2>
+        <button class="modal-close" onclick="closeResetUserPasswordModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="margin-bottom:12px;padding:10px 12px;background:#eef2ff;border-radius:8px;font-size:14px;">
+          为用户 <b id="resetTargetName" style="color:#4f46e5;"></b> 设置新密码
+        </div>
+        <label style="font-size:12px;color:#6b7280;">新密码</label>
+        <input type="text" id="resetNewPassword" placeholder="至少6位" autocomplete="off"
+               style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;margin-top:4px;">
+        <div style="font-size:12px;color:#9ca3af;margin-top:8px;">管理员重置无需旧密码，重置后请告知用户新密码。</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeResetUserPasswordModal()">取消</button>
+        <button class="btn btn-primary" onclick="confirmResetUserPassword()">确认重置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script src="/js/admin.js"></script>
+</body>
+</html>
