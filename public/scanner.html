@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>运单条形码批量识别</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f5f7fa;
+      color: #1f2937;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .header h1 { font-size: 24px; font-weight: 700; color: #111827; }
+    .header .subtitle { font-size: 14px; color: #6b7280; margin-top: 4px; }
+    .header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    .btn {
+      padding: 9px 18px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-primary { background: #4f46e5; color: #fff; }
+    .btn-primary:hover { background: #4338ca; }
+    .btn-outline { background: #fff; color: #374151; border: 1px solid #d1d5db; }
+    .btn-outline:hover { background: #f9fafb; }
+    .btn-success { background: #10b981; color: #fff; }
+    .btn-success:hover { background: #059669; }
+    .btn-danger { background: #fff; color: #dc2626; border: 1px solid #fecaca; }
+    .btn-danger:hover { background: #fef2f2; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .upload-area {
+      border: 2px dashed #cbd5e1;
+      border-radius: 12px;
+      padding: 48px 24px;
+      text-align: center;
+      background: #fff;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 20px;
+    }
+    .upload-area:hover, .upload-area.dragover {
+      border-color: #4f46e5;
+      background: #eef2ff;
+    }
+    .upload-icon { font-size: 48px; margin-bottom: 12px; }
+    .upload-area p { color: #6b7280; font-size: 15px; }
+    .upload-area p strong { color: #4f46e5; }
+    .upload-area .hint { font-size: 12px; color: #9ca3af; margin-top: 8px; }
+
+    .progress-bar-wrap {
+      display: none;
+      background: #fff;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .progress-bar-wrap.active { display: block; }
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 8px;
+    }
+    .progress-track {
+      height: 8px;
+      background: #e5e7eb;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4f46e5, #7c3aed);
+      border-radius: 4px;
+      transition: width 0.3s;
+      width: 0%;
+    }
+
+    .table-wrap {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      overflow: hidden;
+      display: none;
+    }
+    .table-wrap.active { display: block; }
+
+    .table-summary {
+      padding: 14px 20px;
+      background: #f9fafb;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 14px;
+      color: #374151;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .table-summary .stat { display: inline-flex; gap: 6px; align-items: center; margin-left: 12px; }
+    .table-summary .stat-badge {
+      background: #eef2ff;
+      color: #4f46e5;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-weight: 600;
+    }
+    .table-summary .stat-badge.fail { background: #fef2f2; color: #dc2626; }
+
+    table { width: 100%; border-collapse: collapse; }
+    thead { background: #f9fafb; }
+    th {
+      text-align: left;
+      padding: 12px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #e5e7eb;
+      white-space: nowrap;
+    }
+    td {
+      padding: 12px 20px;
+      font-size: 14px;
+      border-bottom: 1px solid #f3f4f6;
+      vertical-align: middle;
+    }
+    tbody tr:hover { background: #f9fafb; }
+    tbody tr:last-child td { border-bottom: none; }
+
+    .col-index { width: 60px; color: #9ca3af; text-align: center; }
+    .col-code { font-family: "SF Mono", "Consolas", monospace; font-size: 14px; font-weight: 600; color: #111827; }
+    .col-code .fail-tag {
+      display: inline-block;
+      background: #fef2f2;
+      color: #dc2626;
+      padding: 2px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+    }
+    .col-img { width: 90px; }
+    .thumb {
+      width: 70px;
+      height: 70px;
+      object-fit: cover;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid #e5e7eb;
+      transition: transform 0.15s;
+    }
+    .thumb:hover { transform: scale(1.05); border-color: #4f46e5; }
+    .col-action { width: 140px; text-align: right; }
+
+    /* 框选弹窗 */
+    .crop-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 2000;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      padding: 20px;
+    }
+    .crop-modal.active { display: flex; }
+    .crop-container {
+      position: relative;
+      max-width: 90vw;
+      max-height: 75vh;
+      background: #1f2937;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .crop-container img {
+      display: block;
+      max-width: 90vw;
+      max-height: 75vh;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+    .crop-overlay {
+      position: absolute;
+      border: 2px dashed #4f46e5;
+      background: rgba(79, 70, 229, 0.15);
+      pointer-events: none;
+    }
+    .crop-toolbar {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+      background: rgba(0,0,0,0.5);
+      padding: 8px;
+      border-radius: 8px;
+    }
+    .crop-hint {
+      color: #fff;
+      font-size: 13px;
+      margin-top: 12px;
+      text-align: center;
+      opacity: 0.85;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid #c7d2fe;
+      border-top-color: #4f46e5;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      padding: 30px;
+      cursor: zoom-out;
+    }
+    .lightbox.active { display: flex; }
+    .lightbox img {
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 8px;
+    }
+    .lightbox-info {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: "SF Mono", "Consolas", monospace;
+    }
+    .lightbox-close {
+      position: absolute;
+      top: 20px;
+      right: 24px;
+      color: #fff;
+      font-size: 32px;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    @media (max-width: 640px) {
+      body { padding: 14px; }
+      .header h1 { font-size: 20px; }
+      th, td { padding: 10px 12px; font-size: 13px; }
+      .thumb { width: 50px; height: 50px; }
+      .col-img { width: 70px; }
+      .col-action { width: 110px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h1>📦 运单条形码批量识别</h1>
+        <div class="subtitle">上传多张运单图片，自动识别 + 手动框选双模式</div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-success" id="exportBtn" style="display:none;" onclick="exportCSV()">📊 导出 CSV</button>
+        <button class="btn btn-danger" id="clearBtn" style="display:none;" onclick="clearAll()">🗑 清空</button>
+      </div>
+    </div>
+
+    <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+      <div class="upload-icon">📷</div>
+      <p><strong>点击上传</strong> 或将图片拖拽到此处</p>
+      <div class="hint">支持批量上传 JPG / PNG / WEBP 等格式。识别失败时点击"框选"手动标记条形码区域</div>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" multiple style="display:none;">
+
+    <div class="progress-bar-wrap" id="progressWrap">
+      <div class="progress-label">
+        <span id="progressText">正在识别...</span>
+        <span id="progressCount">0 / 0</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+    </div>
+
+    <div class="table-wrap" id="tableWrap">
+      <div class="table-summary">
+        <div>
+          共 <strong id="totalCount">0</strong> 张图片 ·
+          <span class="stat">成功识别 <span class="stat-badge" id="successCount">0</span></span>
+          <span class="stat">未识别 <span class="stat-badge fail" id="failCount">0</span></span>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th class="col-index">序号</th>
+            <th>运单号（条形码）</th>
+            <th class="col-img">图片</th>
+            <th class="col-action">操作</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 大图查看 -->
+  <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+    <span class="lightbox-close" onclick="closeLightbox()">×</span>
+    <img id="lightboxImg" src="" alt="运单大图">
+    <div class="lightbox-info" id="lightboxInfo"></div>
+  </div>
+
+  <!-- 框选弹窗 -->
+  <div class="crop-modal" id="cropModal">
+    <div class="crop-container" id="cropContainer">
+      <img id="cropImage" src="" alt="待框选">
+      <div class="crop-overlay" id="cropOverlay" style="display:none;"></div>
+    </div>
+    <div class="crop-hint">🖱️ 在图片上按住鼠标左键拖动，框选条形码区域</div>
+    <div class="crop-toolbar">
+      <button class="btn btn-outline btn-sm" onclick="cancelCrop()">取消</button>
+      <button class="btn btn-primary btn-sm" id="cropConfirmBtn" onclick="confirmCrop()" disabled>✓ 识别此区域</button>
+    </div>
+  </div>
+
+  <script>
+    let results = [];
+    let cropTargetIndex = null;
+    let cropState = { startX: 0, startY: 0, endX: 0, endY: 0, drawing: false };
+
+    const fileInput = document.getElementById('fileInput');
+    const uploadArea = document.getElementById('uploadArea');
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) handleFiles(e.target.files);
+      fileInput.value = '';
+    });
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('dragover');
+    });
+    uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      if (e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);
+    });
+
+    async function handleFiles(fileList) {
+      const files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
+      if (files.length === 0) return;
+
+      results = [];
+      document.getElementById('tableWrap').classList.remove('active');
+      document.getElementById('exportBtn').style.display = 'none';
+      document.getElementById('clearBtn').style.display = 'none';
+
+      const progressWrap = document.getElementById('progressWrap');
+      progressWrap.classList.add('active');
+      const progressFill = document.getElementById('progressFill');
+      const progressText = document.getElementById('progressText');
+      const progressCount = document.getElementById('progressCount');
+
+      for (let i = 0; i < files.length; i++) {
+        const imageUrl = URL.createObjectURL(files[i]);
+        const imageBase64 = await fileToCompressedBase64(files[i]);
+        progressText.innerHTML = '<span class="loading-spinner"></span> 正在识别第 ' + (i + 1) + ' / ' + files.length + ' 张...';
+        progressCount.textContent = (i + 1) + ' / ' + files.length;
+        progressFill.style.width = ((i + 1) / files.length * 100) + '%';
+
+        const code = await scanBarcodeAPI(imageBase64);
+
+        results.push({
+          index: i + 1,
+          code: code,
+          imageUrl: imageUrl,
+          imageBase64: imageBase64,
+          fileName: files[i].name,
+          success: !!code
+        });
+      }
+
+      progressText.textContent = '识别完成！';
+      setTimeout(() => progressWrap.classList.remove('active'), 800);
+      renderTable();
+    }
+
+    // 压缩图片到合适大小再上传（限制最大边长 2000px）
+    function fileToCompressedBase64(file) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 2000;
+          let w = img.width, h = img.height;
+          if (Math.max(w, h) > maxDim) {
+            const scale = maxDim / Math.max(w, h);
+            w = Math.round(w * scale);
+            h = Math.round(h * scale);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.9));
+        };
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
+    // 提取图片的区域为 base64（用于框选后识别）
+    function cropImageToBase64(imageBase64, rect) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          // rect: {x, y, w, h} 是图片原始坐标（按 0-1 比例）
+          const x = Math.round(rect.x * img.width);
+          const y = Math.round(rect.y * img.height);
+          const w = Math.round(rect.w * img.width);
+          const h = Math.round(rect.h * img.height);
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, x, y, w, h, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.95));
+        };
+        img.src = imageBase64;
+      });
+    }
+
+    // 调用后端条形码识别 API
+    async function scanBarcodeAPI(imageBase64) {
+      try {
+        const resp = await fetch('/api/scan-barcode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: imageBase64 })
+        });
+        const data = await resp.json();
+        if (data.results && data.results[0] && data.results[0].success) {
+          return data.results[0].code;
+        }
+      } catch (e) {
+        console.error('条形码识别失败:', e);
+      }
+      return null;
+    }
+
+    // ============ 渲染表格 ============
+    function renderTable() {
+      const tableWrap = document.getElementById('tableWrap');
+      const tableBody = document.getElementById('tableBody');
+      const exportBtn = document.getElementById('exportBtn');
+      const clearBtn = document.getElementById('clearBtn');
+
+      const successCount = results.filter(r => r.success).length;
+      const failCount = results.length - successCount;
+
+      document.getElementById('totalCount').textContent = results.length;
+      document.getElementById('successCount').textContent = successCount;
+      document.getElementById('failCount').textContent = failCount;
+
+      if (results.length === 0) return;
+
+      tableBody.innerHTML = results.map(r => `
+        <tr>
+          <td class="col-index">${r.index}</td>
+          <td class="col-code">
+            ${r.success ? escapeHtml(r.code) : '<span class="fail-tag">未识别</span>'}
+          </td>
+          <td class="col-img">
+            <img class="thumb" src="${r.imageUrl}" alt="运单图片" onclick="openLightbox('${r.imageUrl}', '${(r.code || '未识别').replace(/'/g, "\\'")}')">
+          </td>
+          <td class="col-action">
+            ${r.success
+              ? `<button class="btn btn-outline btn-sm" onclick="openCropModal(${r.index - 1})">重新框选</button>`
+              : `<button class="btn btn-primary btn-sm" onclick="openCropModal(${r.index - 1})">✏️ 框选</button>`}
+          </td>
+        </tr>
+      `).join('');
+
+      tableWrap.classList.add('active');
+      exportBtn.style.display = 'inline-flex';
+      clearBtn.style.display = 'inline-flex';
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // ============ 框选功能 ============
+    function openCropModal(index) {
+      cropTargetIndex = index;
+      const img = document.getElementById('cropImage');
+      img.src = results[index].imageBase64;
+      img.onload = () => {
+        document.getElementById('cropOverlay').style.display = 'none';
+        document.getElementById('cropModal').classList.add('active');
+      };
+    }
+
+    function cancelCrop() {
+      document.getElementById('cropModal').classList.remove('active');
+      cropTargetIndex = null;
+    }
+
+    // 鼠标拖动框选
+    const cropContainer = document.getElementById('cropContainer');
+    cropContainer.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      const rect = cropContainer.getBoundingClientRect();
+      cropState.startX = e.clientX - rect.left;
+      cropState.startY = e.clientY - rect.top;
+      cropState.endX = cropState.startX;
+      cropState.endY = cropState.startY;
+      cropState.drawing = true;
+      const overlay = document.getElementById('cropOverlay');
+      overlay.style.display = 'block';
+      overlay.style.left = cropState.startX + 'px';
+      overlay.style.top = cropState.startY + 'px';
+      overlay.style.width = '0px';
+      overlay.style.height = '0px';
+    });
+    cropContainer.addEventListener('mousemove', (e) => {
+      if (!cropState.drawing) return;
+      const rect = cropContainer.getBoundingClientRect();
+      cropState.endX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+      cropState.endY = Math.max(0, Math.min(rect.height, e.clientY - rect.top));
+      const overlay = document.getElementById('cropOverlay');
+      const x = Math.min(cropState.startX, cropState.endX);
+      const y = Math.min(cropState.startY, cropState.endY);
+      const w = Math.abs(cropState.endX - cropState.startX);
+      const h = Math.abs(cropState.endY - cropState.startY);
+      overlay.style.left = x + 'px';
+      overlay.style.top = y + 'px';
+      overlay.style.width = w + 'px';
+      overlay.style.height = h + 'px';
+      document.getElementById('cropConfirmBtn').disabled = w < 20 || h < 20;
+    });
+    document.addEventListener('mouseup', () => {
+      cropState.drawing = false;
+    });
+
+    async function confirmCrop() {
+      if (cropTargetIndex === null) return;
+      const rect = cropContainer.getBoundingClientRect();
+      const x = Math.min(cropState.startX, cropState.endX);
+      const y = Math.min(cropState.startY, cropState.endY);
+      const w = Math.abs(cropState.endX - cropState.startX);
+      const h = Math.abs(cropState.endY - cropState.startY);
+
+      // 转为图片原始坐标比例 (0-1)
+      const imgEl = document.getElementById('cropImage');
+      const ratioX = x / rect.width;
+      const ratioY = y / rect.height;
+      const ratioW = w / rect.width;
+      const ratioH = h / rect.height;
+
+      const cropped = await cropImageToBase64(results[cropTargetIndex].imageBase64, {
+        x: ratioX, y: ratioY, w: ratioW, h: ratioH
+      });
+
+      const btn = document.getElementById('cropConfirmBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-spinner"></span> 识别中...';
+
+      const code = await scanBarcodeAPI(cropped);
+
+      if (code) {
+        results[cropTargetIndex].code = code;
+        results[cropTargetIndex].success = true;
+      }
+      cancelCrop();
+      btn.innerHTML = '✓ 识别此区域';
+      renderTable();
+    }
+
+    // ============ 大图查看 ============
+    function openLightbox(url, code) {
+      document.getElementById('lightboxImg').src = url;
+      document.getElementById('lightboxInfo').textContent = '运单号：' + code;
+      document.getElementById('lightbox').classList.add('active');
+    }
+    function closeLightbox() {
+      document.getElementById('lightbox').classList.remove('active');
+    }
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeLightbox();
+        if (document.getElementById('cropModal').classList.contains('active')) {
+          cancelCrop();
+        }
+      }
+    });
+
+    // ============ 导出 CSV ============
+    function exportCSV() {
+      if (results.length === 0) return;
+      const BOM = '\uFEFF';
+      const header = '序号,运单号,图片文件名,识别状态\n';
+      const rows = results.map(r =>
+        `${r.index},${r.code || ''},${r.fileName},${r.success ? '成功' : '未识别'}`
+      ).join('\n');
+      const csv = BOM + header + rows;
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = '运单清单_' + new Date().toISOString().slice(0, 10) + '.csv';
+      link.click();
+    }
+
+    function clearAll() {
+      if (!confirm('确定清空所有识别结果吗？')) return;
+      results.forEach(r => URL.revokeObjectURL(r.imageUrl));
+      results = [];
+      document.getElementById('tableWrap').classList.remove('active');
+      document.getElementById('exportBtn').style.display = 'none';
+      document.getElementById('clearBtn').style.display = 'none';
+    }
+  </script>
+</body>
+</html>
