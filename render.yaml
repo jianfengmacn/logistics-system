@@ -1,0 +1,37 @@
+# Render 部署配置
+# 文档: https://render.com/docs/blueprint-spec
+# 使用方法：在 Render 控制台选择 "New" → "Blueprint"，连接 GitHub 仓库即可一键部署
+
+services:
+  # Web 服务（Node.js 后端）
+  - type: web
+    name: logistics-system
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: logistics-db
+          property: connectionString
+      - key: PGSSL
+        value: "false"
+      # 可选：配了腾讯云密钥则走腾讯云 OCR（识别率更高），不配则用 tesseract.js（纯 JS 免费）
+      # - key: TENCENT_SECRET_ID
+      #   sync: false
+      # - key: TENCENT_SECRET_KEY
+      #   sync: false
+      # - key: TENCENT_REGION
+      #   value: "ap-guangzhou"
+      - key: NODE_VERSION
+        value: "18.17.0"
+
+databases:
+  # PostgreSQL 数据库（免费层，90天有效）
+  - name: logistics-db
+    plan: free
+    ipAllowList: []
